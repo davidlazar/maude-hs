@@ -21,7 +21,8 @@
 -- 4. The output from step 2 is parsed and returned.
 --
 -- This is a simple way to perform a single rewrite command, but it is
--- inefficient for performing many rewrite commands.  See /Future Work/ below.
+-- inefficient for performing many rewrite commands.  See /Future Work/
+-- below.
 -----------------------------------------------------------------------------
 
 module Foreign.Maude
@@ -76,8 +77,8 @@ rewrite files term = do
     removeFile runner
     return $ parseMaudeResult out
 
--- | Parse Maude's output into a MaudeResult.  The current implementation does
--- very little sanity checking and can not parse Maude failures.
+-- | Parse Maude's output into a MaudeResult.  The current implementation
+-- does very little sanity checking and can not parse Maude failures.
 parseMaudeResult :: String -> Maybe MaudeResult
 parseMaudeResult str = case lines str of
     (stats : res : _) -> do
@@ -125,7 +126,8 @@ Just (MaudeResult
     , statistics = "rewrites: 6 in 0ms cpu (0ms real) (~ rewrites/second)"
     })
 
-Notice that the resulting list is given in parenthesized form.  This is because
+Notice that the resulting list is given in parenthesized form.  This is
+because
 
 > set print with parentheses on .
 
@@ -160,6 +162,6 @@ following ways:
 
 * Support for other Maude commands besides @rewrite@. 
 
-* A Maude monad that handles failure and multiple Maude commands efficiently is
-  a long-term goal for this package.
+* A Maude monad that handles failure and multiple Maude commands efficiently
+  is a long-term goal for this package.
 -}
