@@ -91,7 +91,6 @@ parseMaudeResult str = case lines str of
             }
     _ -> Nothing
     
-
 -- | Create a temporary file which contains the commands Maude should run at
 -- startup, namely some formatting commands, the rewrite command, and quit.
 newRunnerFile :: String -> IO FilePath
