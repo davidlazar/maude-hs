@@ -4,7 +4,7 @@ Synopsis:           An interface to the Maude rewriting system.
 Description:        This package provides a simple interface for doing Maude
                     rewrites from within Haskell.        
 Homepage:           http://git.mzero.org/maude/
-License:            BSD3
+License:            MIT
 License-file:       LICENSE
 Author:             David Lazar
 Maintainer:         David Lazar <lazar6@illinois.edu>

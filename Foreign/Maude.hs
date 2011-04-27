@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Foreign.Maude
--- Copyright   :  (c) David Lazar, 2010
--- License     :  BSD3
+-- Copyright   :  (c) David Lazar, 2011
+-- License     :  MIT
 --
 -- Maintainer  :  lazar6@illinois.edu
 -- Stability   :  experimental
