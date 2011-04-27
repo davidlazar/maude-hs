@@ -67,7 +67,7 @@ maudeArgs =
 
 -- | The 'rewrite' function takes a list of Maude file names and a term, and
 -- attempts to rewrite the term in the context of those files.  It assumes
--- the command to run Maude is \"maude\" and that it located somewhere in
+-- the command to run Maude is \"maude\" and that it is located somewhere in
 -- @$PATH@.
 rewrite :: [FilePath] -> String -> IO (Maybe MaudeResult)
 rewrite files term = do
