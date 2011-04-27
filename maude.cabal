@@ -12,6 +12,9 @@ Category:           Foreign
 Build-type:         Simple
 Cabal-version:      >=1.2
 
+source-repository head
+  Type:             mercurial
+  Location:         https://maude-hs.googlecode.com/hg/
 
 Library
   Exposed-modules:  Foreign.Maude
