@@ -10,7 +10,7 @@ Author:             David Lazar
 Maintainer:         David Lazar <lazar6@illinois.edu>
 Category:           Foreign
 Build-type:         Simple
-Cabal-version:      >=1.2
+Cabal-version:      >=1.6
 
 source-repository head
   Type:             mercurial
