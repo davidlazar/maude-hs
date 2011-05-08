@@ -38,6 +38,7 @@ module Foreign.Maude
     -- $future
     ) where
 
+import Data.Char (isSpace)
 import Data.List (break, stripPrefix)
 import System.IO (hPutStrLn, hClose, openTempFile)
 import System.Directory (getCurrentDirectory, removeFile)
@@ -80,16 +81,21 @@ rewrite files term = do
 -- | Parse Maude's output into a MaudeResult.  The current implementation
 -- does very little sanity checking and can not parse Maude failures.
 parseMaudeResult :: String -> Maybe MaudeResult
-parseMaudeResult str = case lines str of
-    (stats : res : _) -> do
-        r <- stripPrefix "result " res
-        let (sort, term) = break (==':') r
-        return $ MaudeResult
-            { resultSort = sort
-            , resultTerm = drop 2 term
-            , statistics = stats
-            }
-    _ -> Nothing
+parseMaudeResult str = do
+    let (stats, rest) = break (== '\n') str
+    r <- stripPrefix "\nresult " rest
+    let (sort, rest') = break (== ':') r
+    let term = parseTerm rest'
+    return $ MaudeResult
+        { resultSort = sort
+        , resultTerm = term
+        , statistics = stats
+        }
+    where parseTerm = trim
+                    . concat
+                    . filter (/= "Bye.")
+                    . lines
+                    . drop 1    -- Remove the ':'
     
 -- | Create a temporary file which contains the commands Maude should run at
 -- startup, namely some formatting commands, the rewrite command, and quit.
@@ -103,6 +109,11 @@ newRunnerFile term = do
     hPutStrLn tmph "quit"
     hClose tmph
     return tmpf
+
+-- | Remove leading and trailing whitespace from a string.
+trim :: String -> String
+trim = f . f
+    where f = reverse . dropWhile isSpace
 
 {- $examples
 
