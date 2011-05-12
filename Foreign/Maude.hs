@@ -6,7 +6,7 @@
 --
 -- Maintainer  :  lazar6@illinois.edu
 -- Stability   :  experimental
--- Portability :  non-portable
+-- Portability :  unknown
 --
 -- This package provides a simple interface (via the 'rewrite' functions)
 -- for doing Maude rewrites from within Haskell.  The following steps are
