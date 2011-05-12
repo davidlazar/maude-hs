@@ -82,8 +82,8 @@ data MaudeResult = MaudeResult
     , statistics :: String  -- ^ Statistics printed by Maude.
     } deriving (Show)
 
--- | @rewrite files term@ perform a single Maude rewrite command on @term@
--- using the 'defaultConf' configuration loaded with @files@.
+-- | @rewrite files term@ performs a single Maude rewrite command on
+-- @term@ using the 'defaultConf' configuration loaded with @files@.
 rewrite :: [FilePath] -> String -> IO (Maybe MaudeResult)
 rewrite files term = rewriteWith defaultConf{ loadFiles = files } term
 
