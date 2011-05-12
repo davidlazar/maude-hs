@@ -53,7 +53,7 @@ import System.Process (readProcess)
 -- | Configuration of Maude's execution.
 data MaudeConf = MaudeConf
     { maudeCmd    :: FilePath   -- ^ Path to the Maude executable.
-    , loadFiles   :: [FilePath] -- ^ List of files to load when running Maude.
+    , loadFiles   :: [FilePath] -- ^ Files to load before running a command.
     , printParens :: Bool       -- ^ Whether Maude should print with parentheses.
     } deriving (Eq, Show)
 
