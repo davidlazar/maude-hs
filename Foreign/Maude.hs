@@ -185,4 +185,6 @@ following ways:
 
 * A Maude monad that handles failure and multiple Maude commands efficiently
   is a long-term goal for this package.
+
+* Consider taking of advantage of Maude's -xml-log option.
 -}
