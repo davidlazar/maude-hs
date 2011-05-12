@@ -8,9 +8,9 @@
 -- Stability   :  experimental
 -- Portability :  non-portable
 --
--- This package provides a simple interface (via the 'rewrite' function) for
--- doing Maude rewrites from within Haskell.  The following steps are
--- performed every time the 'rewrite' function is executed: 
+-- This package provides a simple interface (via the 'rewrite' functions)
+-- for doing Maude rewrites from within Haskell.  The following steps are
+-- performed every time the 'rewrite' functions are executed: 
 --
 -- 1. A temporary file is created that contains the necessary commands.
 --
@@ -27,9 +27,14 @@
 
 module Foreign.Maude
     (
+    -- * Configuration
+      MaudeConf(..)
+    , defaultConf
+
     -- * Invoking Maude
-      MaudeResult(..)
+    , MaudeResult(..)
     , rewrite
+    , rewriteWith
 
     -- * Examples
     -- $examples
@@ -38,23 +43,27 @@ module Foreign.Maude
     -- $future
     ) where
 
+import Control.Monad (when)
 import Data.Char (isSpace)
 import Data.List (break, stripPrefix)
 import System.IO (hPutStrLn, hClose, openTempFile)
 import System.Directory (getCurrentDirectory, removeFile)
 import System.Process (readProcess)
 
+-- | Configuration of Maude's execution.
+data MaudeConf = MaudeConf
+    { maudeCmd    :: FilePath   -- ^ Path to the Maude executable.
+    , loadFiles   :: [FilePath] -- ^ List of files to load when running Maude.
+    , printParens :: Bool       -- ^ Whether Maude should print with parentheses.
+    } deriving (Eq, Show)
 
--- | The result of a Maude rewrite.
-data MaudeResult = MaudeResult
-    { resultSort :: String  -- ^ The sort of the rewritten term.
-    , resultTerm :: String  -- ^ The rewritten term.
-    , statistics :: String  -- ^ Statistics printed by Maude.
-    } deriving (Show)
-
--- | The name of the Maude executable.  It should be in $PATH.
-maudeCmd :: FilePath
-maudeCmd = "maude"
+-- | The default configuration used by the 'rewrite' function.
+defaultConf :: MaudeConf
+defaultConf = MaudeConf
+    { maudeCmd    = "maude"
+    , loadFiles   = []
+    , printParens = False
+    }
 
 -- | Maude option flags which force Maude's output to be as relevant as
 -- possible.
@@ -66,15 +75,25 @@ maudeArgs =
     , "-no-ansi-color"
     ]
 
--- | The 'rewrite' function takes a list of Maude file names and a term, and
--- attempts to rewrite the term in the context of those files.  It assumes
--- the command to run Maude is \"maude\" and that it is located somewhere in
--- @$PATH@.
+-- | The result of a Maude rewrite.
+data MaudeResult = MaudeResult
+    { resultSort :: String  -- ^ The sort of the rewritten term.
+    , resultTerm :: String  -- ^ The rewritten term.
+    , statistics :: String  -- ^ Statistics printed by Maude.
+    } deriving (Show)
+
+-- | @rewrite files term@ perform a single Maude rewrite command on @term@
+-- using the 'defaultConf' configuration loaded with @files@.
 rewrite :: [FilePath] -> String -> IO (Maybe MaudeResult)
-rewrite files term = do
-    runner <- newRunnerFile term
-    let args = maudeArgs ++ files ++ [runner]
-    out <- readProcess maudeCmd args []
+rewrite files term = rewriteWith defaultConf{ loadFiles = files } term
+
+-- | @rewriteWith conf term@ performs a single Maude rewrite command on
+-- @term@ using the configuration @conf@.
+rewriteWith :: MaudeConf -> String -> IO (Maybe MaudeResult)
+rewriteWith conf term = do
+    runner <- newRunnerFile conf term
+    let args = maudeArgs ++ [runner]
+    out <- readProcess (maudeCmd conf) args []
     removeFile runner
     return $ parseMaudeResult out
 
@@ -98,12 +117,15 @@ parseMaudeResult str = do
                     . drop 1    -- Remove the ':'
     
 -- | Create a temporary file which contains the commands Maude should run at
--- startup, namely some formatting commands, the rewrite command, and quit.
-newRunnerFile :: String -> IO FilePath
-newRunnerFile term = do
+-- startup: load file commands, formatting commands, the rewrite command,
+-- and the quit command.
+newRunnerFile :: MaudeConf -> String -> IO FilePath
+newRunnerFile conf term = do
     currDir <- getCurrentDirectory
     (tmpf, tmph) <- openTempFile currDir "runner.maude"
-    hPutStrLn tmph "set print with parentheses on ."
+    mapM_ (hPutStrLn tmph . ("load " ++)) (loadFiles conf)
+    when (printParens conf) $
+        hPutStrLn tmph "set print with parentheses on ."
     hPutStrLn tmph "set show command off ."
     hPutStrLn tmph $ "rewrite " ++ term ++ " ."
     hPutStrLn tmph "quit"
@@ -132,23 +154,16 @@ The name of the module in which to reduce a term can be given explicitly:
 >>> rewrite [] "in NAT-LIST : reverse(1 2 3 4)"
 Just (MaudeResult
     { resultSort = "NeNatList"
-    , resultTerm = "(4 (3 (2 1)))"
+    , resultTerm = "4 3 2 1"
     , statistics = "rewrites: 6 in 0ms cpu (0ms real) (~ rewrites/second)"
     })
-
-Notice that the resulting list is given in parenthesized form.  This is
-because
-
-> set print with parentheses on .
-
-is executed before every rewrite.
 
 Using a naive implementation of primes in Maude:
 
 >>> rewrite ["primes.maude"] "2 .. 20"
 Just (MaudeResult
     { resultSort = "PrimeSet"
-    , resultTerm = "(2 (3 (5 (7 (11 (13 (17 19)))))))"
+    , resultTerm = "2 3 5 7 11 13 17 19"
     , statistics = "rewrites: 185 in 0ms cpu (0ms real) (~ rewrites/second)"
     })
 
@@ -165,10 +180,6 @@ following ways:
 
 * Better handling of Maude failures.  Failure messages should be parsed and
   returned to the user.
-
-* The rewriting environment should be configurable.  This would allow
-  parenthesized mode to be turned off and for the location of the Maude
-  binary to be customized.
 
 * Support for other Maude commands besides @rewrite@. 
 
