@@ -36,6 +36,9 @@ module Foreign.Maude
     , rewrite
     , rewriteWith
 
+    -- * Parsing Maude's output
+    , parseMaudeResult
+
     -- * Examples
     -- $examples
 
