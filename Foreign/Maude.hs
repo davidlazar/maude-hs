@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Foreign.Maude
@@ -48,8 +49,10 @@ module Foreign.Maude
 
 import Control.Monad (when)
 import Data.Char (isSpace)
-import Data.List (break, stripPrefix)
-import System.IO (hPutStrLn, hClose, openTempFile)
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import System.IO (hPutStr, hPutStrLn, hClose, openTempFile)
 import System.Directory (getCurrentDirectory, removeFile)
 import System.Process (readProcess)
 
@@ -80,33 +83,33 @@ maudeArgs =
 
 -- | The result of a Maude rewrite.
 data MaudeResult = MaudeResult
-    { resultSort :: String  -- ^ The sort of the rewritten term.
-    , resultTerm :: String  -- ^ The rewritten term.
-    , statistics :: String  -- ^ Statistics printed by Maude.
+    { resultSort :: Text  -- ^ The sort of the rewritten term.
+    , resultTerm :: Text  -- ^ The rewritten term.
+    , statistics :: Text  -- ^ Statistics printed by Maude.
     } deriving (Show)
 
 -- | @rewrite files term@ performs a single Maude rewrite command on
 -- @term@ using the 'defaultConf' configuration loaded with @files@.
-rewrite :: [FilePath] -> String -> IO (Maybe MaudeResult)
+rewrite :: [FilePath] -> Text -> IO (Maybe MaudeResult)
 rewrite files term = rewriteWith defaultConf{ loadFiles = files } term
 
 -- | @rewriteWith conf term@ performs a single Maude rewrite command on
 -- @term@ using the configuration @conf@.
-rewriteWith :: MaudeConf -> String -> IO (Maybe MaudeResult)
+rewriteWith :: MaudeConf -> Text -> IO (Maybe MaudeResult)
 rewriteWith conf term = do
     runner <- newRunnerFile conf term
     let args = maudeArgs ++ [runner]
     out <- readProcess (maudeCmd conf) args []
     removeFile runner
-    return $ parseMaudeResult out
+    return $ parseMaudeResult (T.pack out)
 
 -- | Parse Maude's output into a MaudeResult.  The current implementation
 -- does very little sanity checking and can not parse Maude failures.
-parseMaudeResult :: String -> Maybe MaudeResult
+parseMaudeResult :: Text -> Maybe MaudeResult
 parseMaudeResult str = do
-    let (stats, rest) = break (== '\n') str
-    r <- stripPrefix "\nresult " rest
-    let (sort, rest') = break (== ':') r
+    let (stats, rest) = T.break (== '\n') str
+    r <- T.stripPrefix "\nresult " rest
+    let (sort, rest') = T.break (== ':') r
     let term = parseTerm rest'
     return $ MaudeResult
         { resultSort = sort
@@ -114,31 +117,33 @@ parseMaudeResult str = do
         , statistics = stats
         }
     where parseTerm = trim
-                    . concat
+                    . T.concat
                     . filter (/= "Bye.")
-                    . lines
-                    . drop 1    -- Remove the ':'
+                    . T.lines
+                    . T.drop 1    -- Remove the ':'
     
 -- | Create a temporary file which contains the commands Maude should run at
 -- startup: load file commands, formatting commands, the rewrite command,
 -- and the quit command.
-newRunnerFile :: MaudeConf -> String -> IO FilePath
+newRunnerFile :: MaudeConf -> Text -> IO FilePath
 newRunnerFile conf term = do
     currDir <- getCurrentDirectory
     (tmpf, tmph) <- openTempFile currDir "runner.maude"
-    mapM_ (hPutStrLn tmph . ("load " ++)) (loadFiles conf)
+    mapM_ (\f -> T.hPutStrLn tmph "load " >> hPutStrLn tmph f) (loadFiles conf)
     when (printParens conf) $
-        hPutStrLn tmph "set print with parentheses on ."
-    hPutStrLn tmph "set show command off ."
-    hPutStrLn tmph $ "rewrite " ++ term ++ " ."
-    hPutStrLn tmph "quit"
+        T.hPutStrLn tmph "set print with parentheses on ."
+    T.hPutStrLn tmph "set show command off ."
+    T.hPutStr tmph "rewrite "
+    T.hPutStr tmph term
+    T.hPutStrLn tmph " ."
+    T.hPutStrLn tmph "quit"
     hClose tmph
     return tmpf
 
 -- | Remove leading and trailing whitespace from a string.
-trim :: String -> String
+trim :: Text -> Text
 trim = f . f
-    where f = reverse . dropWhile isSpace
+    where f = T.reverse . T.dropWhile isSpace
 
 {- $examples
 
