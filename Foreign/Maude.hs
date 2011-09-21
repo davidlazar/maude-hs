@@ -129,7 +129,7 @@ newRunnerFile :: MaudeConf -> Text -> IO FilePath
 newRunnerFile conf term = do
     currDir <- getCurrentDirectory
     (tmpf, tmph) <- openTempFile currDir "runner.maude"
-    mapM_ (\f -> T.hPutStrLn tmph "load " >> hPutStrLn tmph f) (loadFiles conf)
+    mapM_ (\f -> T.hPutStr tmph "load " >> hPutStrLn tmph f) (loadFiles conf)
     when (printParens conf) $
         T.hPutStrLn tmph "set print with parentheses on ."
     T.hPutStrLn tmph "set show command off ."
