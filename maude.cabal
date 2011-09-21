@@ -1,5 +1,5 @@
 Name:               maude
-Version:            0.2.0
+Version:            0.2.1
 Synopsis:           An interface to the Maude rewriting system.
 Description:        This package provides a simple interface for doing Maude
                     rewrites from within Haskell.
