@@ -55,6 +55,8 @@ import qualified Data.Text.IO as T
 import System.IO (hPutStr, hPutStrLn, hClose, openTempFile)
 import System.Directory (getCurrentDirectory, removeFile)
 import System.Process (readProcess)
+import Text.Parsec
+import Text.Parsec.Text
 
 -- | Configuration of Maude's execution.
 data MaudeConf = MaudeConf
@@ -106,22 +108,32 @@ rewriteWith conf term = do
 -- | Parse Maude's output into a MaudeResult.  The current implementation
 -- does very little sanity checking and can not parse Maude failures.
 parseMaudeResult :: Text -> Maybe MaudeResult
-parseMaudeResult str = do
-    let (stats, rest) = T.break (== '\n') str
-    r <- T.stripPrefix "\nresult " rest
-    let (sort, rest') = T.break (== ':') r
-    let term = parseTerm rest'
+parseMaudeResult txt =
+    case parse pMaudeResult "" txt of
+        Left _ -> Nothing
+        Right r -> Just r
+
+-- | Parsec parser that parses the output of a successful Maude
+-- rewrite command.
+pMaudeResult :: Parser MaudeResult
+pMaudeResult = do
+    optional (string "Maude>")
+    spaces
+    stats <- many1 (satisfy (/= '\n'))
+    newline
+    string "result"
+    spaces
+    sort <- many1 (satisfy (/= ':'))
+    char ':'
+    spaces
+    lines <- many1 (satisfy (/= '\n')) `endBy1` newline
+    let term = concat . filter (/= "Bye.") $ lines
     return $ MaudeResult
-        { resultSort = sort
-        , resultTerm = term
-        , statistics = stats
+        { resultSort = T.pack sort
+        , resultTerm = T.pack term
+        , statistics = T.pack stats
         }
-    where parseTerm = trim
-                    . T.concat
-                    . filter (/= "Bye.")
-                    . T.lines
-                    . T.drop 1    -- Remove the ':'
-    
+
 -- | Create a temporary file which contains the commands Maude should run at
 -- startup: load file commands, formatting commands, the rewrite command,
 -- and the quit command.
