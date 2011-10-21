@@ -34,11 +34,13 @@ module Foreign.Maude
 
     -- * Invoking Maude
     , MaudeResult(..)
+    , SearchResult(..)
     , rewrite
     , rewriteWith
 
     -- * Parsing Maude's output
     , parseMaudeResult
+    , parseSearchResults
 
     -- * Examples
     -- $examples
@@ -48,7 +50,7 @@ module Foreign.Maude
     ) where
 
 import Control.Monad (when)
-import Data.Char (isSpace)
+import Data.Char (digitToInt, isSpace)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -90,6 +92,13 @@ data MaudeResult = MaudeResult
     , statistics :: Text  -- ^ Statistics printed by Maude.
     } deriving (Show)
 
+-- | The result of a Maude search.
+data SearchResult = SearchResult
+    { searchResultState :: Integer
+    , searchStatistics :: Text
+    , searchResultTerm :: Text
+    } deriving (Show)
+
 -- | @rewrite files term@ performs a single Maude rewrite command on
 -- @term@ using the 'defaultConf' configuration loaded with @files@.
 rewrite :: [FilePath] -> Text -> IO (Maybe MaudeResult)
@@ -110,6 +119,13 @@ rewriteWith conf term = do
 parseMaudeResult :: Text -> Maybe MaudeResult
 parseMaudeResult txt =
     case parse pMaudeResult "" txt of
+        Left _ -> Nothing
+        Right r -> Just r
+
+
+parseSearchResults :: Text -> Maybe [SearchResult]
+parseSearchResults txt =
+    case parse pSearchResults "" txt of
         Left _ -> Nothing
         Right r -> Just r
 
@@ -134,6 +150,38 @@ pMaudeResult = do
         , statistics = T.pack stats
         }
 
+-- | Parsec parser that parses the output of a successful Maude
+-- search command.
+pSearchResults :: Parser [SearchResult]
+pSearchResults = do
+    optional (string "Maude>" >> spaces)
+    pSearchResult `endBy1` newline
+
+-- | Parsec parser that parses a single search result.
+pSearchResult :: Parser SearchResult
+pSearchResult = do
+    symbol "Solution"
+    integer
+    spaces
+    state <- parens (symbol "state" >> integer)
+    newline
+    stats <- pLine
+    var <- pLine
+    lines <- many1 pLine
+    let term = concat lines
+    return $ SearchResult
+        { searchResultState = state
+        , searchStatistics = T.pack stats
+        , searchResultTerm = T.pack term
+        }
+
+-- | Parse a single line.
+pLine :: Parser String
+pLine = do
+    x <- many1 (satisfy (/= '\n'))
+    newline
+    return x
+
 -- | Create a temporary file which contains the commands Maude should run at
 -- startup: load file commands, formatting commands, the rewrite command,
 -- and the quit command.
@@ -156,6 +204,21 @@ newRunnerFile conf term = do
 trim :: Text -> Text
 trim = f . f
     where f = T.reverse . T.dropWhile isSpace
+
+-- Lexers:
+
+integer = number 10 digit
+
+parens = between (char '(') (char ')')
+
+symbol s = do { x <- string s; spaces; return x }
+
+-- copied from Parsec:
+number base baseDigit
+    = do { digits <- many1 baseDigit
+         ; let n = foldl (\x d -> base * x + toInteger (digitToInt d)) 0 digits
+         ; seq n (return n)
+         }
 
 {- $examples
 
