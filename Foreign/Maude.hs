@@ -135,14 +135,13 @@ pMaudeResult :: Parser MaudeResult
 pMaudeResult = do
     optional (string "Maude>")
     spaces
-    stats <- many1 (satisfy (/= '\n'))
-    newline
+    stats <- pLine
     string "result"
     spaces
     sort <- many1 (satisfy (/= ':'))
     char ':'
     spaces
-    lines <- many1 (satisfy (/= '\n')) `endBy1` newline
+    lines <- many1 pLine
     let term = concat . filter (/= "Bye.") $ lines
     return $ MaudeResult
         { resultSort = T.pack sort
