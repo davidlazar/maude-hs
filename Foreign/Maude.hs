@@ -142,11 +142,11 @@ pMaudeResult = do
     char ':'
     spaces
     lines <- many1 pLine
-    let term = concat . filter (/= "Bye.") $ lines
+    let term = T.concat . filter (/= "Bye.") $ lines
     return $ MaudeResult
         { resultSort = T.pack sort
-        , resultTerm = T.pack term
-        , statistics = T.pack stats
+        , resultTerm = term
+        , statistics = stats
         }
 
 -- | Parsec parser that parses the output of a successful Maude
@@ -167,19 +167,19 @@ pSearchResult = do
     stats <- pLine
     var <- pLine
     lines <- many1 pLine
-    let term = concat lines
+    let term = T.concat lines
     return $ SearchResult
         { searchResultState = state
-        , searchStatistics = T.pack stats
-        , searchResultTerm = T.pack term
+        , searchStatistics = stats
+        , searchResultTerm = term
         }
 
 -- | Parse a single line.
-pLine :: Parser String
+pLine :: Parser Text
 pLine = do
     x <- many1 (satisfy (/= '\n'))
     newline
-    return x
+    return $ T.pack x
 
 -- | Create a temporary file which contains the commands Maude should run at
 -- startup: load file commands, formatting commands, the rewrite command,
