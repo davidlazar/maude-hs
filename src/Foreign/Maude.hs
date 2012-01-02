@@ -122,7 +122,7 @@ parseMaudeResult txt =
         Left _ -> Nothing
         Right r -> Just r
 
-
+-- | Parse the output of a successful @search@ command.
 parseSearchResults :: Text -> Maybe [SearchResult]
 parseSearchResults txt =
     case parse pSearchResults "" txt of
