@@ -9,9 +9,9 @@
 -- Stability   :  experimental
 -- Portability :  unknown
 --
--- This package provides a simple interface (via the 'rewrite' functions)
--- for doing Maude rewrites from within Haskell.  The following steps are
--- performed every time the 'rewrite' functions are executed: 
+-- This package provides a simple interface (via the 'rewrite' and 'search'
+-- functions) for doing Maude rewrites from within Haskell.  The following
+-- steps are performed every time Maude is executed by this library:
 --
 -- 1. A temporary file is created that contains the necessary commands.
 --
@@ -32,11 +32,17 @@ module Foreign.Maude
       MaudeConf(..)
     , defaultConf
 
+    -- * Maude commands
+    , Term
+    , Pattern
+    , MaudeCommand(..)
+
     -- * Invoking Maude
     , RewriteResult(..)
     , SearchResult(..)
     , rewrite
-    , rewriteWith
+    , search
+    , runMaude
 
     -- * Parsing Maude's output
     , parseRewriteResult
@@ -49,6 +55,7 @@ module Foreign.Maude
     -- $future
     ) where
 
+import Control.Applicative ((<$>))
 import Control.Monad (when)
 import Data.Char (digitToInt)
 import Data.Text (Text)
@@ -67,7 +74,7 @@ data MaudeConf = MaudeConf
     , printParens :: Bool       -- ^ Whether Maude should print with parentheses.
     } deriving (Eq, Show)
 
--- | The default configuration used by the 'rewrite' function.
+-- | The default Maude configuration.
 defaultConf :: MaudeConf
 defaultConf = MaudeConf
     { maudeCmd    = "maude"
@@ -85,6 +92,18 @@ maudeArgs =
     , "-no-ansi-color"
     ]
 
+-- | Synonym for text to be manipulated by Maude.
+type Term = Text
+
+-- | Synonym for text representing a search pattern; see 'search'.
+type Pattern = Text
+
+-- Commands used in Maude.
+data MaudeCommand
+    = Rewrite Term
+    | Search Term Pattern
+    deriving (Show)
+
 -- | The result of a Maude rewrite.
 data RewriteResult = RewriteResult
     { resultSort :: Text  -- ^ The sort of the rewritten term.
@@ -95,24 +114,36 @@ data RewriteResult = RewriteResult
 -- | A single Maude search result.
 data SearchResult = SearchResult
     { searchResultState :: Integer
-    , searchStatistics :: Text
-    , searchResultTerm :: Text
+    , searchStatistics  :: Text
+    , searchResultTerm  :: Text
     } deriving (Show)
 
 -- | @rewrite files term@ performs a single Maude rewrite command on
--- @term@ using the 'defaultConf' configuration loaded with @files@.
-rewrite :: [FilePath] -> Text -> IO (Maybe RewriteResult)
-rewrite files term = rewriteWith defaultConf{ loadFiles = files } term
+-- @term@ with @files@ loaded.
+rewrite :: [FilePath] -> Term -> IO (Maybe RewriteResult)
+rewrite files term = parseRewriteResult
+                 <$> runMaude defaultConf{ loadFiles = files } (Rewrite term)
 
--- | @rewriteWith conf term@ performs a single Maude rewrite command on
--- @term@ using the configuration @conf@.
-rewriteWith :: MaudeConf -> Text -> IO (Maybe RewriteResult)
-rewriteWith conf term = do
-    runner <- newRunnerFile conf term
+-- | @search files term pattern@ uses Maude to search for all reachable
+-- states starting from @term@ and matching the given @pattern@. Note that
+-- @pattern@ should also include the search type. For example,
+--
+-- >>> search [] term "=>! N:Nat"
+--
+search :: [FilePath] -> Term -> Pattern -> IO (Maybe [SearchResult])
+search files term pattern = parseSearchResults
+                        <$> runMaude defaultConf{ loadFiles = files } cmd
+    where cmd = Search term pattern
+
+-- | @runMaude conf cmd@ runs the Maude using the configuration @conf@
+-- and performs the command @cmd@.
+runMaude :: MaudeConf -> MaudeCommand -> IO Text
+runMaude conf cmd = do
+    runner <- newRunnerFile conf cmd
     let args = maudeArgs ++ [runner]
     out <- readProcess (maudeCmd conf) args []
     removeFile runner
-    return $ parseRewriteResult (T.pack out)
+    return $ T.pack out
 
 -- | Parse Maude's output into a RewriteResult.  The current implementation
 -- does very little sanity checking and can not parse Maude failures.
@@ -185,22 +216,23 @@ pLine = do
     return $ T.pack x
 
 -- | Create a temporary file which contains the commands Maude should run at
--- startup: load file commands, formatting commands, the rewrite command,
+-- startup: load file commands, formatting commands, the command to execute,
 -- and the quit command.
-newRunnerFile :: MaudeConf -> Text -> IO FilePath
-newRunnerFile conf term = do
+newRunnerFile :: MaudeConf -> MaudeCommand -> IO FilePath
+newRunnerFile conf cmd = do
     currDir <- getCurrentDirectory
     (tmpf, tmph) <- openTempFile currDir "runner.maude"
     mapM_ (\f -> T.hPutStr tmph "load " >> hPutStrLn tmph f) (loadFiles conf)
     when (printParens conf) $
         T.hPutStrLn tmph "set print with parentheses on ."
     T.hPutStrLn tmph "set show command off ."
-    T.hPutStr tmph "rewrite "
-    T.hPutStr tmph term
+    T.hPutStr tmph (toTxt cmd)
     T.hPutStrLn tmph " ."
     T.hPutStrLn tmph "quit"
     hClose tmph
     return tmpf
+    where toTxt (Rewrite term) = T.append "rewrite " term
+          toTxt (Search term pat) = T.intercalate " " ["search", term, pat]
 
 
 -- Lexers:
