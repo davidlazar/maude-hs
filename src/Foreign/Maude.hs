@@ -50,7 +50,7 @@ module Foreign.Maude
     ) where
 
 import Control.Monad (when)
-import Data.Char (digitToInt, isSpace)
+import Data.Char (digitToInt)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -199,10 +199,6 @@ newRunnerFile conf term = do
     hClose tmph
     return tmpf
 
--- | Remove leading and trailing whitespace from a string.
-trim :: Text -> Text
-trim = f . f
-    where f = T.reverse . T.dropWhile isSpace
 
 -- Lexers:
 
