@@ -92,7 +92,7 @@ data MaudeResult = MaudeResult
     , statistics :: Text  -- ^ Statistics printed by Maude.
     } deriving (Show)
 
--- | The result of a Maude search.
+-- | A single Maude search result.
 data SearchResult = SearchResult
     { searchResultState :: Integer
     , searchStatistics :: Text
