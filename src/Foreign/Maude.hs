@@ -33,13 +33,13 @@ module Foreign.Maude
     , defaultConf
 
     -- * Invoking Maude
-    , MaudeResult(..)
+    , RewriteResult(..)
     , SearchResult(..)
     , rewrite
     , rewriteWith
 
     -- * Parsing Maude's output
-    , parseMaudeResult
+    , parseRewriteResult
     , parseSearchResults
 
     -- * Examples
@@ -86,7 +86,7 @@ maudeArgs =
     ]
 
 -- | The result of a Maude rewrite.
-data MaudeResult = MaudeResult
+data RewriteResult = RewriteResult
     { resultSort :: Text  -- ^ The sort of the rewritten term.
     , resultTerm :: Text  -- ^ The rewritten term.
     , statistics :: Text  -- ^ Statistics printed by Maude.
@@ -101,24 +101,24 @@ data SearchResult = SearchResult
 
 -- | @rewrite files term@ performs a single Maude rewrite command on
 -- @term@ using the 'defaultConf' configuration loaded with @files@.
-rewrite :: [FilePath] -> Text -> IO (Maybe MaudeResult)
+rewrite :: [FilePath] -> Text -> IO (Maybe RewriteResult)
 rewrite files term = rewriteWith defaultConf{ loadFiles = files } term
 
 -- | @rewriteWith conf term@ performs a single Maude rewrite command on
 -- @term@ using the configuration @conf@.
-rewriteWith :: MaudeConf -> Text -> IO (Maybe MaudeResult)
+rewriteWith :: MaudeConf -> Text -> IO (Maybe RewriteResult)
 rewriteWith conf term = do
     runner <- newRunnerFile conf term
     let args = maudeArgs ++ [runner]
     out <- readProcess (maudeCmd conf) args []
     removeFile runner
-    return $ parseMaudeResult (T.pack out)
+    return $ parseRewriteResult (T.pack out)
 
--- | Parse Maude's output into a MaudeResult.  The current implementation
+-- | Parse Maude's output into a RewriteResult.  The current implementation
 -- does very little sanity checking and can not parse Maude failures.
-parseMaudeResult :: Text -> Maybe MaudeResult
-parseMaudeResult txt =
-    case parse pMaudeResult "" txt of
+parseRewriteResult :: Text -> Maybe RewriteResult
+parseRewriteResult txt =
+    case parse pRewriteResult "" txt of
         Left _ -> Nothing
         Right r -> Just r
 
@@ -131,8 +131,8 @@ parseSearchResults txt =
 
 -- | Parsec parser that parses the output of a successful Maude
 -- rewrite command.
-pMaudeResult :: Parser MaudeResult
-pMaudeResult = do
+pRewriteResult :: Parser RewriteResult
+pRewriteResult = do
     optional (string "Maude>")
     spaces
     stats <- pLine
@@ -143,7 +143,7 @@ pMaudeResult = do
     spaces
     lines <- many1 pLine
     let term = T.concat . filter (/= "Bye.") $ lines
-    return $ MaudeResult
+    return $ RewriteResult
         { resultSort = T.pack sort
         , resultTerm = term
         , statistics = stats
@@ -225,7 +225,7 @@ Maude's standard prelude is loaded by default, even when no input files are
 specified:
 
 >>> rewrite [] "not (A:Bool or B:Bool) implies (not A:Bool) and (not B:Bool)"
-Just (MaudeResult
+Just (RewriteResult
     { resultSort = "Bool"
     , resultTerm = "true"
     , statistics = "rewrites: 13 in 0ms cpu (0ms real) (~ rewrites/second)"
@@ -234,7 +234,7 @@ Just (MaudeResult
 The name of the module in which to reduce a term can be given explicitly:
 
 >>> rewrite [] "in NAT-LIST : reverse(1 2 3 4)"
-Just (MaudeResult
+Just (RewriteResult
     { resultSort = "NeNatList"
     , resultTerm = "4 3 2 1"
     , statistics = "rewrites: 6 in 0ms cpu (0ms real) (~ rewrites/second)"
@@ -243,7 +243,7 @@ Just (MaudeResult
 Using a naive implementation of primes in Maude:
 
 >>> rewrite ["primes.maude"] "2 .. 20"
-Just (MaudeResult
+Just (RewriteResult
     { resultSort = "PrimeSet"
     , resultTerm = "2 3 5 7 11 13 17 19"
     , statistics = "rewrites: 185 in 0ms cpu (0ms real) (~ rewrites/second)"
