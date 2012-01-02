@@ -153,7 +153,8 @@ pRewriteResult = do
 -- search command.
 pSearchResults :: Parser [SearchResult]
 pSearchResults = do
-    optional (string "Maude>" >> spaces)
+    optional (symbol "Maude>")
+    spaces
     pSearchResult `endBy1` newline
 
 -- | Parsec parser that parses a single search result.
@@ -165,7 +166,9 @@ pSearchResult = do
     state <- parens (symbol "state" >> integer)
     newline
     stats <- pLine
-    var <- pLine
+    var <- many1 (satisfy (/= ' '))
+    spaces
+    symbol "-->"
     lines <- many1 pLine
     let term = T.concat lines
     return $ SearchResult
