@@ -15,6 +15,12 @@ data Parser a
     | Ok a
     deriving (Show)
 
+instance Applicative Parser where
+    pure = Ok
+    (Ok f) <*> (Ok a) = Ok $ f a
+    (ParseError e s) <*> _ = ParseError e s
+    _ <*> (ParseError e s) = (ParseError e s)    
+             
 instance Functor Parser where
     fmap _ (ParseError e s) = ParseError e s
     fmap f (Ok r) = Ok (f r)
